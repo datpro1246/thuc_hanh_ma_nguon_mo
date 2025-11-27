@@ -6,100 +6,101 @@ import pandas as pd
 import re
 
 #######################################################
-# I. Tai noi chua links vaf Tao dataframe rong
-all_links = []
-d = pd.DataFrame({'name' : [], 'birth' : [],'death' : [], 'nationality' : []})
+# I. Tạo DataFrame rỗng
+d = pd.DataFrame({'name': [], 'birth': [], 'death': [], 'nationality': []})
 
 # Đường dẫn chromedriver
 service = Service("/Users/binh/Downloads/chromedriver-mac-arm64 bài tập lớp/chromedriver")
 
 #############################################################
-# II. Lay ra tat ca duong dan de truy cap den painters
-for i in range(70, 71):
+# II. Lấy tất cả đường dẫn của họa sĩ
+all_links = []
+
+# Chọn chữ cái (ví dụ 'A')
+for i in range(65, 66):  # 65 là 'A' theo ASCII
     driver = webdriver.Chrome(service=service)
-    url = "https://en.wikipedia.org/wiki/List_of_painters_by_name_beginning_with_%22"+chr(i)+"%22"
+    url = "https://en.wikipedia.org/wiki/List_of_painters_by_name_beginning_with_%22" + chr(i) + "%22"
     try:
         driver.get(url)
         time.sleep(3)
 
-        ul_tags = driver.find_elements(By.TAG_NAME, "ul")
-        print(len(ul_tags))
+        # Lấy các div chứa danh sách họa sĩ
+        divs = driver.find_elements(By.CLASS_NAME, "div-col")
+        for div in divs:
+            li_tags = div.find_elements(By.TAG_NAME, "li")
+            for li in li_tags:
+                try:
+                    a_tag = li.find_element(By.TAG_NAME, "a")
+                    href = a_tag.get_attribute("href")
+                    if href and "/wiki/" in href:
+                        all_links.append(href)
+                except:
+                    continue
 
-        ul_painters = ul_tags[20]
-        li_tags = ul_painters.find_elements(By.TAG_NAME, "li")
+        print(f"Số link thu thập được: {len(all_links)}")
 
-        links = [tag.find_element(By.TAG_NAME, "a").get_attribute("href") for tag in li_tags]
-        for x in links:
-            all_links.append(x)
+    except Exception as e:
+        print("Error!", e)
 
-    except:
-        print("Error!")
-
-driver.quit()
+    driver.quit()
 
 ############################################################
-# III. Lay thong tin cua tung hoa si
+# III. Lấy thông tin từng họa sĩ
+driver = webdriver.Chrome(service=service)
 count = 0
-for link in all_links:
-    if count > 3:
-        break
-    count += 1
 
-    print(link)
+for link in all_links:
+    count += 1
+    print(f"{count}: {link}")
 
     try:
-        driver = webdriver.Chrome(service=service)
-        url = link
-        driver.get(url)
+        driver.get(link)
         time.sleep(2)
 
-        # Lay ten hoa si
+        # Tên họa sĩ
         try:
             name = driver.find_element(By.TAG_NAME, "h1").text
         except:
             name = ""
 
-        # Lay ngay sinh
+        # Ngày sinh
         try:
             birth_element = driver.find_element(By.XPATH, "//th[text()='Born']/following-sibling::td")
             birth_raw = birth_element.text
-            birth = re.findall(r'[0-9]{1,2}\s+[A-Za-z]+\s+[0-9]{4}', birth_raw)[0]
+            birth_match = re.findall(r'[0-9]{1,2}\s+[A-Za-z]+\s+[0-9]{4}', birth_raw)
+            birth = birth_match[0] if birth_match else ""
         except:
             birth = ""
 
-        # Lay ngay mat
+        # Ngày mất
         try:
             death_element = driver.find_element(By.XPATH, "//th[text()='Died']/following-sibling::td")
             death_raw = death_element.text
-            death = re.findall(r'[0-9]{1,2}\s+[A-Za-z]+\s+[0-9]{4}', death_raw)[0]
+            death_match = re.findall(r'[0-9]{1,2}\s+[A-Za-z]+\s+[0-9]{4}', death_raw)
+            death = death_match[0] if death_match else ""
         except:
             death = ""
 
-        # Lay quoc tich
+        # Quốc tịch
         try:
             nationality_element = driver.find_element(By.XPATH, "//th[text()='Nationality']/following-sibling::td")
             nationality = nationality_element.text
         except:
             nationality = ""
 
-        # Tao dictionary thong tin cua hoa si
+        # Thêm vào DataFrame
         painter = {'name': name, 'birth': birth, 'death': death, 'nationality': nationality}
+        d = pd.concat([d, pd.DataFrame([painter])], ignore_index=True)
 
-        # CHuyen doi dictionary thanh DataFrame
-        painter_df = pd.DataFrame([painter])
+    except Exception as e:
+        print("Error getting info:", e)
+        continue
 
-        # Them vao DF chinh
-        d = pd.concat([d, painter_df], ignore_index=True)
-
-        driver.quit()
-
-    except:
-        pass
+driver.quit()
 
 #################################
-# IV. In thong tin
+# IV. In thông tin và xuất Excel
 print(d)
-
 file_name = 'Painters.xlsx'
-d.to_excel(file_name)
+d.to_excel(file_name, index=False)
 print('Dataframe is written to Excel File successfully.')
