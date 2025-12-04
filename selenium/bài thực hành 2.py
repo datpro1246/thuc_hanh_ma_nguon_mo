@@ -4,7 +4,7 @@ from selenium.webdriver.common.by import By
 import time
 
 # Đường dẫn ChromeDriver
-driver_path = "/Users/binh/Downloads/chromedriver-mac-arm64 bài tập lớp/chromedriver"
+driver_path = "/Users/binh/thuc_hanh_ma_nguon_mo/selenium/chromedriver"
 service = Service(driver_path)
 
 # Khởi tạo Webdriver

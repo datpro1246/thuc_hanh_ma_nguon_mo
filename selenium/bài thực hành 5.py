@@ -10,7 +10,7 @@ import re
 d = pd.DataFrame({'name': [], 'birth': [], 'death': [], 'nationality': []})
 
 # Khoi tao webdriver
-service = Service("/Users/binh/Downloads/chromedriver-mac-arm64 bài tập lớp/chromedriver")
+service = Service("/Users/binh/thuc_hanh_ma_nguon_mo/selenium/chromedriver")
 driver = webdriver.Chrome(service=service)
 
 # Mo trang

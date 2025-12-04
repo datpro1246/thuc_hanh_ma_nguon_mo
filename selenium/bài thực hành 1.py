@@ -6,7 +6,7 @@ import time
 
 # Đường dẫn Chrome + Chromedriver của bạn
 chrome_path = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
-driver_path = "/Users/binh/Downloads/chromedriver-mac-arm64 bài tập lớp/chromedriver"
+driver_path = "/Users/binh/thuc_hanh_ma_nguon_mo/selenium/chromedriver"
 
 # Cấu hình Chrome
 options = Options()

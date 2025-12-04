@@ -4,7 +4,7 @@ from selenium.webdriver.chrome.service import Service
 import time
 
 # ĐƯỜNG DẪN CHO CHROMEDRIVER 
-chrome_driver_path = "/Users/binh/Downloads/chromedriver-mac-arm64 bài tập lớp/chromedriver"
+chrome_driver_path = "/Users/binh/thuc_hanh_ma_nguon_mo/selenium/chromedriver"
 service = Service(chrome_driver_path)
 
 # Khởi tạo WebDriver Chrome
