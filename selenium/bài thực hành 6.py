@@ -38,7 +38,7 @@ descriptors = ['portrait', 'landscape', 'historical', 'miniaturist', 'sculptor',
 
 # II. Lấy tất cả đường dẫn họa sĩ bắt đầu bằng chữ A
 all_links = []
-for i in range(65, 66):  # 65 = 'A', nhưng bạn chỉ lấy 1 ký tự
+for i in range(72, 73):  # 72 = 'H', nhưng bạn chỉ lấy 1 ký tự
     driver = webdriver.Chrome(service=service)
     url = "https://en.wikipedia.org/wiki/List_of_painters_by_name_beginning_with_%22" + chr(i) + "%22"
     try:

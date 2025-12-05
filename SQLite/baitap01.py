@@ -8,7 +8,7 @@ cursor = conn.cursor()
 
 # 2. Thao tác với Database và Table
 
-# Lệnh SQL ddeer tạo bảng products
+# Lệnh SQL  tạo bảng products
 sql1 = """
 CREATE TABLE IF NOT EXISTS products (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
