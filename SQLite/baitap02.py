@@ -8,10 +8,7 @@ import pandas as pd
 import re
 import os
 
-###########################################################
 # I. KHỞI TẠO DB + CẤU HÌNH
-###########################################################
-
 DB_FILE = "Painters_Data.db"
 TABLE_NAME = "painters_info"
 
@@ -49,10 +46,7 @@ options.add_argument("--disable-gpu")
 options.add_argument("--no-sandbox")
 
 
-###########################################################
 # II. Hàm xử lý ngày tháng
-###########################################################
-
 def extract_date(text):
     text = re.sub(r'\[.*?\]', '', text)
     text = re.sub(r'\(.*?\)', '', text)
@@ -75,10 +69,7 @@ def safe_quit(driver):
         pass
 
 
-###########################################################
 # III. LẤY TẤT CẢ LINK A → Z (15 link mỗi chữ cái)
-###########################################################
-
 all_links = []
 
 print("\n--- Lấy link A→Z ---")
@@ -122,10 +113,7 @@ for i in range(65, 90):  # A–Z
 print(f"Tổng link: {len(all_links)}")
 
 
-###########################################################
 # IV. CRAWL DỮ LIỆU TỪNG HỌA SĨ → LƯU SQLITE
-###########################################################
-
 print("\n--- Crawl dữ liệu ---")
 count = 0
 
@@ -138,13 +126,13 @@ for link in all_links:
 
         name = birth = death = nationality = ""
 
-        # ===== 1. Lấy tên =====
+        #  1. Lấy tên 
         try:
             name = driver.find_element(By.TAG_NAME, "h1").text
         except:
             name = ""
 
-        # ===== 2. Ưu tiên Infobox =====
+        #  2. Ưu tiên Infobox
         try:
             # Born
             birth_element = driver.find_element(
@@ -174,7 +162,7 @@ for link in all_links:
                     tmp = re.sub(r'\d', '', birth_text[-1]).strip()
                     nationality = tmp.split(",")[-1].strip()
 
-        # ===== 3. Fallback paragraphs =====
+        #  3. Fallback paragraphs 
         except:
             try:
                 paragraphs = driver.find_elements(By.XPATH, "//div[@id='mw-content-text']//p")
@@ -220,7 +208,7 @@ for link in all_links:
 
         safe_quit(driver)
 
-        # ===== LƯU VÀO DATABASE =====
+        # LƯU VÀO DATABASE 
         cursor.execute(f"""
             INSERT OR IGNORE INTO {TABLE_NAME} (name, birth, death, nationality)
             VALUES (?, ?, ?, ?)
@@ -236,8 +224,6 @@ for link in all_links:
 
 
 # V. TRUY VẤN KIỂM TRA
-###########################################################
-
 def run_sql(query, desc=None):
     if desc:
         print(f"\n{desc}")
@@ -251,7 +237,7 @@ def run_sql(query, desc=None):
 run_sql(
     f"SELECT COUNT(*)\n"
     f"FROM {TABLE_NAME};",
-    "1️⃣ Tổng số họa sĩ"
+    "1️: Tổng số họa sĩ"
 )
 
 
@@ -260,7 +246,7 @@ run_sql(
     f"SELECT *\n"
     f"FROM {TABLE_NAME}\n"
     f"LIMIT 5;",
-    "2️⃣ 5 dòng đầu tiên"
+    "2️: 5 dòng đầu tiên"
 )
 
 # 3. Các quốc tịch duy nhất
@@ -268,7 +254,7 @@ run_sql(
     f"SELECT DISTINCT nationality\n"
     f"FROM {TABLE_NAME}\n"
     f"WHERE nationality <> '';",
-    "3️⃣ Quốc tịch duy nhất"
+    "3️: Quốc tịch duy nhất"
 )
 
 # 4. Họa sĩ có tên bắt đầu bằng F
@@ -276,7 +262,7 @@ run_sql(
     f"SELECT name\n"
     f"FROM {TABLE_NAME}\n"
     f"WHERE name LIKE 'F%';",
-    "4️⃣ Họa sĩ tên bắt đầu F"
+    "4️: Họa sĩ tên bắt đầu F"
 )
 
 # 5. Nationality có chứa chữ “French”
@@ -284,7 +270,7 @@ run_sql(
     f"SELECT name, nationality\n"
     f"FROM {TABLE_NAME}\n"
     f"WHERE nationality LIKE '%French%';",
-    "5️⃣ Nationality chứa French"
+    "5️: Nationality chứa French"
 )
 
 # 6. Họa sĩ không có nationality
@@ -292,7 +278,7 @@ run_sql(
     f"SELECT name\n"
     f"FROM {TABLE_NAME}\n"
     f"WHERE nationality = '' OR nationality IS NULL;",
-    "6️⃣ Không có nationality"
+    "6️: Không có nationality"
 )
 
 # 7. Có đầy đủ birth và death
@@ -300,7 +286,7 @@ run_sql(
     f"SELECT name\n"
     f"FROM {TABLE_NAME}\n"
     f"WHERE birth <> '' AND death <> '';",
-    "7️⃣ Đầy đủ birth + death"
+    "7️: Đầy đủ birth + death"
 )
 
 # 8. Tên chứa “Fales”
@@ -308,7 +294,7 @@ run_sql(
     f"SELECT *\n"
     f"FROM {TABLE_NAME}\n"
     f"WHERE name LIKE '%Fales%';",
-    "8️⃣ Tên chứa Fales"
+    "8️: Tên chứa Fales"
 )
 
 # 9. Sắp xếp theo alphabet
@@ -316,7 +302,7 @@ run_sql(
     f"SELECT name\n"
     f"FROM {TABLE_NAME}\n"
     f"ORDER BY name ASC;",
-    "9️⃣ Sort A→Z"
+    "9️: Sort A→Z"
 )
 
 # 10. Group theo nationality + đếm số lượng
@@ -325,7 +311,7 @@ run_sql(
     f"FROM {TABLE_NAME}\n"
     f"GROUP BY nationality\n"
     f"ORDER BY COUNT(*) DESC;",
-    "🔟 Đếm theo nationality"
+    "10: Đếm theo nationality"
 )
 
 conn.close()

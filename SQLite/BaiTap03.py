@@ -1,68 +1,301 @@
-"""
-Đề Bài Thực Hành: Cào Dữ Liệu Long Châu và Quản Lý SQLite
-I. Mục Tiêu
-    Thực hiện cào dữ liệu sản phẩm từ trang web chính thức của chuỗi nhà thuốc Long Châu bằng công cụ Selenium, lưu trữ dữ liệu thu thập được một cách tức thời vào cơ sở dữ liệu SQLite, và kiểm tra chất lượng dữ liệu.
+# 1. IMPORT
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.firefox.service import Service
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.common.keys import Keys
 
-II. Yêu Cầu Kỹ Thuật (Scraping & Lưu trữ)
-    Công cụ: Sử dụng thư viện Selenium kết hợp với Python và Pandas (cho việc quản lý DataFrame tạm thời và lưu vào DB).
+import sqlite3
+import pandas as pd
+import time
+import random
+import os
 
-    Phạm vi Cào: Chọn một danh mục sản phẩm cụ thể trên trang Long Châu (ví dụ: "Thực phẩm chức năng", "Chăm sóc da", hoặc "Thuốc") và cào ít nhất 50 sản phẩm (có thể cào nhiều trang/URL khác nhau).
 
-    Dữ liệu cần cào: Đối với mỗi sản phẩm, cần thu thập ít nhất các thông tin sau (table phải có các cột bên dưới):
+# 1. FIREFOX + GECKODRIVER 
+GECKO = "/Users/binh/thuc_hanh_ma_nguon_mo/gecko bài tập /bài tập trên lớp/geckodriver"
 
-        Mã sản phẩm (id): cố gắng phân tích và lấy mã sản phẩm gốc từ trang web, nếu không được thì dùng mã tự tăng.
+opt = webdriver.firefox.options.Options()
+opt.binary_location = "/Applications/Firefox.app/Contents/MacOS/firefox"
+opt.headless = False
 
-        Tên sản phẩm (product_name)
+# LONG CHÂU HTTPS FIX
+opt.set_preference("security.enterprise_roots.enabled", True)
+opt.set_preference("webdriver_accept_untrusted_certs", True)
+opt.set_preference("acceptInsecureCerts", True)
+opt.set_preference("dom.security.https_only_mode", False)
 
-        Giá bán (price)
+driver = webdriver.Firefox(service=Service(GECKO), options=opt)
+driver.maximize_window()
 
-        Giá gốc/Giá niêm yết (nếu có, original_price)
 
-        Đơn vị tính (ví dụ: Hộp, Chai, Vỉ, unit)
+# 2. VÀO TRANG LONG CHÂU
+url = "https://nhathuoclongchau.com.vn/thuc-pham-chuc-nang"
+driver.get(url)
+time.sleep(2)
 
-        Link URL sản phẩm (product_url) (Dùng làm định danh duy nhất)
+body = driver.find_element(By.TAG_NAME, "body")
 
-    Lưu trữ Tức thời:
+# 3. TỰ ĐỘNG TÌM & NHẤN NÚT “Xem thêm sản phẩm”
+def click_xem_them():
+    try:
+        # chờ spinner tắt
+        WebDriverWait(driver, 8).until(
+            EC.invisibility_of_element_located((By.CSS_SELECTOR, ".custom-estore-spinner"))
+        )
+    except:
+        pass
 
-        Sử dụng thư viện sqlite3 để tạo cơ sở dữ liệu (longchau_db.sqlite).
+    btns = driver.find_elements(By.CSS_SELECTOR, "button")
+    for b in btns:
+        txt = b.text.strip().lower()
+        if "xem thêm" in txt and "phẩm" in txt:
+            driver.execute_script("arguments[0].scrollIntoView({block:'center'});", b)
+            time.sleep(0.4)
+            try:
+                b.click()
+                return True
+            except:
+                return False
+    return False
 
-        Thực hiện lưu trữ dữ liệu ngay lập tức sau khi cào xong thông tin của mỗi sản phẩm (sử dụng conn.cursor().execute() hoặc DataFrame.to_sql(if_exists='append')) thay vì lưu trữ toàn bộ sau khi kết thúc quá trình cào.
 
-        Sử dụng product_url hoặc một trường định danh khác làm PRIMARY KEY (hoặc kết hợp với lệnh INSERT OR IGNORE) để tránh ghi đè nếu chạy lại code.
+# Bấm tối đa 20 lần
+for _ in range(20):
+    ok = click_xem_them()
+    time.sleep(1.2)
+    if not ok:
+        break
 
-III. Yêu Cầu Phân Tích Dữ Liệu (Query/Truy Vấn)
-    Sau khi dữ liệu được thu thập, tạo và thực thi ít nhất 15 câu lệnh SQL (queries) để khảo sát chất lượng và nội dung dữ liệu.
 
-    Nhóm 1: Kiểm Tra Chất Lượng Dữ Liệu (Bắt buộc)
-        Kiểm tra trùng lặp (Duplicate Check): Kiểm tra và hiển thị tất cả các bản ghi có sự trùng lặp dựa trên trường product_url hoặc product_name.
+# 4. CUỘN TRANG EXTRA LOAD
+for _ in range(50):
+    body.send_keys(Keys.PAGE_DOWN)
+    time.sleep(0.02)
 
-        Kiểm tra dữ liệu thiếu (Missing Data): Đếm số lượng sản phẩm không có thông tin Giá bán (price là NULL hoặc 0).
+driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+time.sleep(1)
 
-        Kiểm tra giá: Tìm và hiển thị các sản phẩm có Giá bán lớn hơn Giá gốc/Giá niêm yết (logic bất thường).
 
-        Kiểm tra định dạng: Liệt kê các unit (đơn vị tính) duy nhất để kiểm tra sự nhất quán trong dữ liệu.
+# 5. CHUẨN BỊ MẢNG LƯU DỮ LIỆU
+ids, names, prices, units, originals, links = [], [], [], [], [], []
 
-        Tổng số lượng bản ghi: Đếm tổng số sản phẩm đã được cào.
 
-    Nhóm 2: Khảo sát và Phân Tích (Bổ sung)
-        Sản phẩm có giảm giá: Hiển thị 10 sản phẩm có mức giá giảm (chênh lệch giữa original_price và price) lớn nhất.
+# 6. TÌM TẤT CẢ BUTTON “Chọn mua” 
+buttons = driver.find_elements(By.XPATH, "//button[contains(text(),'Chọn mua')]")
+print("Số sản phẩm tìm thấy:", len(buttons))
 
-        Sản phẩm đắt nhất: Tìm và hiển thị sản phẩm có giá bán cao nhất.
 
-        Thống kê theo đơn vị: Đếm số lượng sản phẩm theo từng Đơn vị tính (unit).
+# 7. LẶP QUA TỪNG SẢN PHẨM
+for btn in buttons:
+    # Lấy block cha 3 tầng
+    block = btn.find_element(By.XPATH, "./ancestor::div[3]")
 
-        Sản phẩm cụ thể: Tìm kiếm và hiển thị tất cả thông tin của các sản phẩm có tên chứa từ khóa "Vitamin C".
+    pid = "SP" + str(random.randint(11111, 99999))
 
-        Lọc theo giá: Liệt kê các sản phẩm có giá bán nằm trong khoảng từ 100.000 VNĐ đến 200.000 VNĐ.
+    # Tên sản phẩm
+    try:
+        name = block.find_element(By.CSS_SELECTOR, "h3").text.strip()
+    except:
+        name = ""
 
-    Nhóm 3: Các Truy vấn Nâng cao (Tùy chọn)
-        Sắp xếp: Sắp xếp tất cả sản phẩm theo Giá bán từ thấp đến cao.
+    # Giá / Đơn vị
+    try:
+        pbox = block.find_element(By.CSS_SELECTOR, ".text-blue-5")
+        price = pbox.find_element(By.CSS_SELECTOR, ".font-semibold").text.strip()
+        unit = pbox.find_element(By.CSS_SELECTOR, ".text-label2").text.strip().replace("/", "")
+    except:
+        price, unit = "", ""
 
-        Phần trăm giảm giá: Tính phần trăm giảm giá cho mỗi sản phẩm và hiển thị 5 sản phẩm có phần trăm giảm giá cao nhất (Yêu cầu tính toán trong query hoặc sau khi lấy data).
+    # Giá gốc
+    try:
+        original = block.find_element(By.CSS_SELECTOR, ".line-through").text.strip()
+    except:
+        original = price
 
-        Xóa bản ghi trùng lặp: Viết câu lệnh SQL để xóa các bản ghi bị trùng lặp, chỉ giữ lại một bản ghi (sử dụng Subquery hoặc Common Table Expression - CTE).
+    # URL sản phẩm
+    try:
+        link = block.find_element(By.TAG_NAME, "a").get_attribute("href")
+    except:
+        link = ""
 
-        Phân tích nhóm giá: Đếm số lượng sản phẩm trong từng nhóm giá (ví dụ: dưới 50k, 50k-100k, trên 100k).
+    if name:
+        ids.append(pid)
+        names.append(name)
+        prices.append(price)
+        units.append(unit)
+        originals.append(original)
+        links.append(link)
 
-        URL không hợp lệ: Liệt kê các bản ghi mà trường product_url bị NULL hoặc rỗng.
-"""
+driver.quit()
+
+
+# 8. TẠO DB - XÓA DB CŨ
+dbname = "longchau_db.sqlite"
+
+if os.path.exists(dbname):
+    os.remove(dbname)
+
+conn = sqlite3.connect(dbname)
+cur = conn.cursor()
+
+cur.execute("""
+CREATE TABLE products (
+    product_url TEXT PRIMARY KEY,
+    product_id TEXT,
+    product_name TEXT,
+    price TEXT,
+    unit TEXT,
+    original_price TEXT
+)
+""")
+conn.commit()
+
+# Insert dữ liệu
+for a,b,c,d,e,f in zip(ids, names, prices, units, originals, links):
+    cur.execute("""
+        INSERT OR REPLACE INTO products VALUES (?,?,?,?,?,?)
+    """, (f,a,b,c,d,e))
+conn.commit()
+
+print(">>> Đã lưu xong dữ liệu vào longchau_db.sqlite")
+
+
+# 9. PRINT TABLE HỖ TRỢ
+def show(sql):
+    cur.execute(sql)
+    data = cur.fetchall()
+    cols = [x[0] for x in cur.description]
+    print(pd.DataFrame(data, columns=cols).to_string(index=False), "\n")
+
+
+# 10. 15 CÂU SQL - truy vấn
+queries = [
+
+    ("1. Các URL trùng nhau:",
+     """SELECT COUNT(*) AS so_url_trung
+        FROM (
+            SELECT product_url
+            FROM products
+            GROUP BY product_url
+            HAVING COUNT(*) > 1
+) AS tmp;
+"""),
+
+    ("2. Sản phẩm không có giá :",
+     """SELECT COUNT(*) AS missing_price
+        FROM products
+        WHERE IFNULL(price,'') = '';"""),
+
+    ("3. Giá bán > giá gốc:",
+     """SELECT product_name, price, original_price
+        FROM products
+        WHERE CAST(REPLACE(price,'.','') AS INTEGER)
+            > CAST(REPLACE(original_price,'.','') AS INTEGER);"""),
+
+    ("4. Các đơn vị tính:",
+     "SELECT DISTINCT unit FROM products;"),
+
+    ("5. Tổng số mặt hàng:",
+     "SELECT COUNT(product_id) AS tong FROM products;"),
+
+    ("6. Top 10 giảm giá mạnh:",
+     """
+     SELECT product_name, price, original_price,
+     CAST(REPLACE(original_price,'.','') AS INT)
+     - CAST(REPLACE(price,'.','') AS INT) AS giam_tien
+     FROM products
+     ORDER BY giam_tien DESC
+     LIMIT 10;
+     """),
+
+    ("7. Món đắt nhất:",
+     """
+     SELECT product_name, price
+     FROM products
+     ORDER BY CAST(REPLACE(price,'.','') AS INT) DESC
+     LIMIT 1;
+     """),
+
+    ("8. Thống kê theo đơn vị tính:",
+     """SELECT unit, COUNT(*) AS sl FROM products GROUP BY unit;"""),
+
+    ("9. Sản phẩm chứa chữ Vitamin C:",
+     """SELECT * FROM products
+        WHERE product_name LIKE '%Vitamin C%';"""),
+
+    ("10. Giá từ 100k–200k:",
+     """
+     SELECT product_name, price
+     FROM products
+     WHERE CAST(REPLACE(price,'.','') AS INT)
+           BETWEEN 100000 AND 200000;
+     """),
+
+    ("11. 15 sản phẩm giá thấp nhất:",
+     """
+     SELECT product_name, price
+     FROM products
+     ORDER BY CAST(REPLACE(price,'.','') AS INT) ASC
+     LIMIT 15;
+     """),
+
+    ("12. Top % giảm giá:",
+     """
+     SELECT product_name, price, original_price,
+       ROUND(
+         (CAST(REPLACE(original_price,'.','') AS FLOAT) -
+          CAST(REPLACE(price,'.','') AS FLOAT))
+          / CAST(REPLACE(original_price,'.','') AS FLOAT) * 100, 2
+       ) AS percent
+     FROM products
+     WHERE original_price <> ''
+     ORDER BY percent DESC
+     LIMIT 5;
+     """),
+
+    ("13. Xóa URL trùng (chỉ giữ 1 cái):",
+     """
+     DELETE FROM products
+     WHERE rowid NOT IN (
+        SELECT MIN(rowid)
+        FROM products
+        GROUP BY product_url
+     );
+     """),
+
+    ("14. Phân nhóm giá sản phẩm:",
+     """
+     SELECT 
+       CASE
+         WHEN CAST(REPLACE(price,'.','') AS INT) < 50000 THEN 'Dưới 50k'
+         WHEN CAST(REPLACE(price,'.','') AS INT) <= 100000 THEN '50k - 100k'
+         ELSE 'Trên 100k'
+       END AS nhom,
+       COUNT(*) AS sl
+     FROM products
+     GROUP BY nhom;
+     """),
+
+    ("15. Sản phẩm thiếu URL:",
+     """SELECT COUNT(*) AS so_san_pham_thieu_url
+        FROM products
+        WHERE product_url IS NULL OR product_url = '';
+""")
+
+]
+
+
+print("\n==================== SQL RESULT ====================\n")
+for desc, sql in queries:
+    print(desc)
+    if sql.strip().upper().startswith("DELETE"):
+        cur.execute(sql)
+        conn.commit()
+        print("Đã chạy DELETE.\n")
+    else:
+        show(sql)
+
+conn.close()
+print("\n>>> HOÀN TẤT TOÀN BỘ SCRIPT <<<")
