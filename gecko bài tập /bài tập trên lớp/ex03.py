@@ -36,9 +36,9 @@ time.sleep(2)
 firstname_input = driver.find_element(By.XPATH, "//input[@name='firstname']")
 lastname_input = driver.find_element(By.XPATH, "//input[@name='lastname']")
 
-firstname_input.send_keys('Nhat Tung')
+firstname_input.send_keys('Nguyễn Thanh')
 time.sleep(1)
-lastname_input.send_keys("Le")
+lastname_input.send_keys("Binh")
 
 time.sleep(2)
 buttton = driver.find_element(By.XPATH, "//input[@type='submit']")
